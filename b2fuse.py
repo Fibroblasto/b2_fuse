@@ -61,9 +61,11 @@ def create_parser():
         help="Bucket ID for the bucket to mount (overrides config)"
     )
 
-    parser.add_argument("--memory_limit", type=int, default=128, help="Memory limit")
     parser.add_argument("--temp_folder", type=str, default=".tmp/", help="Temporary file folder")
     parser.add_argument("--config_filename", type=str, default="config.yaml", help="Config file")
+    
+    
+    parser.add_argument("-o", type=str, default="", help=argparse.SUPPRESS)
 
     return parser
 
@@ -83,6 +85,19 @@ if __name__ == '__main__':
         config = load_config(args.config_filename)
     else:
         config = {}
+        
+    if args.o:
+        kvs = dict(map(lambda kv: kv.split("="), args.o.split(",")))
+        
+        if kvs.get("account_id") is not None:
+            config["accountId"] = kvs.get("account_id")
+            
+        if kvs.get("application_key") is not None:
+            config["applicationKey"] = kvs.get("application_key")
+                
+        if kvs.get("bucket_id") is not None:
+            config["bucketId"] = kvs.get("bucket_id")
+        
 
     if args.account_id:
         config["accountId"] = args.account_id
@@ -98,9 +113,6 @@ if __name__ == '__main__':
     else:
         config["enableHashfiles"] = False
 
-    if args.memory_limit:
-        config["memoryLimit"] = args.memory_limit
-
     if args.temp_folder:
         config["tempFolder"] = args.temp_folder
 
@@ -111,6 +123,6 @@ if __name__ == '__main__':
 
     with B2Fuse(
         config["accountId"], config["applicationKey"], config["bucketId"],
-        config["enableHashfiles"], config["memoryLimit"], config["tempFolder"], config["useDisk"]
+        config["enableHashfiles"], config["tempFolder"], config["useDisk"]
     ) as filesystem:
         FUSE(filesystem, args.mountpoint, nothreads=True, foreground=True)
