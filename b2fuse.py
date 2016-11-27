@@ -41,6 +41,8 @@ def create_parser():
 
     parser.add_argument('--use_disk', dest='use_disk', action='store_true')
     parser.set_defaults(use_disk=False)
+    
+    parser.add_argument('--version',action='version', version="B2Fuse version 1.3")
 
     parser.add_argument(
         "--account_id",
@@ -61,11 +63,11 @@ def create_parser():
         help="Bucket ID for the bucket to mount (overrides config)"
     )
 
-    parser.add_argument("--temp_folder", type=str, default=".tmp/", help="Temporary file folder")
-    parser.add_argument("--config_filename", type=str, default="config.yaml", help="Config file")
+    parser.add_argument("--temp_folder", type=str, help="Temporary file folder")
+    parser.add_argument("--config_filename", type=str, help="Config file")
     
     
-    parser.add_argument("-o", type=str, default="", help=argparse.SUPPRESS)
+    parser.add_argument("-o", type=str, help=argparse.SUPPRESS)
 
     return parser
 
@@ -74,19 +76,28 @@ def load_config(config_filename):
     with open(config_filename) as f:
         return yaml.load(f.read())
 
-
+def default_arg(arg, default=None):
+    if arg:
+        return arg
+    else:
+        return default
+        
+        
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARNING, format="%(asctime)s:%(levelname)s:%(message)s")
 
     parser = create_parser()
     args = parser.parse_args()
-
+    
     if args.config_filename:
         config = load_config(args.config_filename)
     else:
         config = {}
         
+        
     if args.o:
+        print args.o
+        
         kvs = dict(map(lambda kv: kv.split("="), args.o.split(",")))
         
         if kvs.get("account_id") is not None:
@@ -98,28 +109,20 @@ if __name__ == '__main__':
         if kvs.get("bucket_id") is not None:
             config["bucketId"] = kvs.get("bucket_id")
         
+    #Required args
+    config["accountId"] = default_arg(args.account_id)
+    config["applicationKey"] = default_arg(args.application_key)
+    config["bucketId"] = default_arg(args.bucket_id)
 
-    if args.account_id:
-        config["accountId"] = args.account_id
-
-    if args.application_key:
-        config["applicationKey"] = args.application_key
-
-    if args.bucket_id:
-        config["bucketId"] = args.bucket_id
-
-    if args.enable_hashfiles:
-        config["enableHashfiles"] = args.enable_hashfiles
-    else:
-        config["enableHashfiles"] = False
-
-    if args.temp_folder:
-        config["tempFolder"] = args.temp_folder
-
-    if args.use_disk:
-        config["useDisk"] = args.use_disk
-    else:
-        config["useDisk"] = False
+    #Optional args
+    config["enableHashfiles"] = default_arg(args.enable_hashfiles, False)
+    config["tempFolder"] = default_arg(args.temp_folder, ".tmp/")
+    config["useDisk"] = default_arg(args.use_disk, False)
+    
+    #Check required parameters
+    assert config.get("accountId"), "Account ID not given"
+    assert config.get("applicationKey"), "Application key not given"
+    assert config.get("bucketId"), "Bucket ID not given"
 
     with B2Fuse(
         config["accountId"], config["applicationKey"], config["bucketId"],
